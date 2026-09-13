@@ -2,7 +2,7 @@
   "name": "Сокровища королевы",
   "short_name": "Сокровища",
   "description": "Премиальный финансовый трекер: доход, расходы, долги и свадебный фонд.",
-  "start_url": "./",
+  "start_url": "./?v=6",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
