@@ -28,6 +28,10 @@
   --safe-bottom: env(safe-area-inset-bottom);
 }
 
+html {
+  touch-action: manipulation;
+}
+
 html, body {
   margin: 0;
   min-height: 100%;
@@ -63,6 +67,11 @@ body::after {
 button, input, select, textarea {
   font: inherit;
   color: inherit;
+}
+
+button, a, .nav, .sheet, .pad, .chips {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1, h2, h3, .serif {
@@ -381,6 +390,7 @@ h1, h2, h3, .serif {
   text-transform: uppercase;
   color: var(--gold-deep);
   margin: 0 0 10px;
+  flex-shrink: 0;
 }
 
 .row {
@@ -460,11 +470,29 @@ h1, h2, h3, .serif {
   box-shadow: 0 -20px 50px rgba(16, 38, 63, 0.18);
   z-index: 31;
   transition: transform 0.28s ease;
-  overflow: auto;
-  padding: 10px 16px calc(20px + var(--safe-bottom));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 16px 0;
+  touch-action: manipulation;
 }
 
 .sheet.open { transform: translateX(-50%) translateY(0); }
+
+.sheet-fields {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.keypad-block {
+  flex: 0 0 auto;
+  padding: 4px 0 calc(12px + var(--safe-bottom));
+  background: #fffbf4;
+  touch-action: manipulation;
+}
 
 .grab {
   width: 42px;
@@ -472,6 +500,7 @@ h1, h2, h3, .serif {
   border-radius: 99px;
   background: #e0d5c0;
   margin: 6px auto 10px;
+  flex-shrink: 0;
 }
 
 .tabs {
@@ -480,7 +509,8 @@ h1, h2, h3, .serif {
   background: #efe6d4;
   padding: 4px;
   border-radius: 999px;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .tabs button {
@@ -501,12 +531,12 @@ h1, h2, h3, .serif {
 
 .amount-display {
   text-align: center;
-  padding: 8px 0 12px;
+  padding: 2px 0 6px;
 }
 
 .amount-display span {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--gold-deep);
@@ -514,7 +544,8 @@ h1, h2, h3, .serif {
 
 .amount-display strong {
   font-family: "Cormorant Garamond", Georgia, serif;
-  font-size: 48px;
+  font-size: 36px;
+  line-height: 1.1;
   color: var(--navy);
 }
 
@@ -566,17 +597,21 @@ h1, h2, h3, .serif {
 .pad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 8px 0 12px;
+  gap: 6px;
+  margin: 0 0 10px;
+  touch-action: manipulation;
 }
 
 .pad button {
-  height: 48px;
+  height: 46px;
   border: 0;
   border-radius: 14px;
   background: #f3ead8;
   font-size: 18px;
   font-weight: 600;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .primary, .ghost {

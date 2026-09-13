@@ -262,6 +262,30 @@ function padInput(key) {
   renderSheetAmount();
 }
 
+function bindAmountPad() {
+  const pad = document.getElementById("amount-pad");
+  if (!pad || pad.dataset.bound) return;
+  pad.dataset.bound = "1";
+  let touch = false;
+  pad.addEventListener("touchend", (event) => {
+    const btn = event.target.closest("button");
+    if (!btn || !pad.contains(btn)) return;
+    touch = true;
+    event.preventDefault();
+    padInput(btn.dataset.key);
+  }, { passive: false });
+  pad.addEventListener("click", (event) => {
+    if (touch) {
+      touch = false;
+      return;
+    }
+    const btn = event.target.closest("button");
+    if (!btn || !pad.contains(btn)) return;
+    padInput(btn.dataset.key);
+  });
+  pad.addEventListener("dblclick", (event) => event.preventDefault());
+}
+
 function renderSheetAmount() {
   const n = parseAmount();
   document.getElementById("amount-value").textContent = n ? money(n) : "0 ₽";
@@ -744,6 +768,8 @@ function boot() {
   if (!state.onboardingDone) document.getElementById("welcome").classList.add("show");
   selectedMonth = currentMonthId();
   if (!MONTHS.some((m) => m.id === selectedMonth)) selectedMonth = MONTHS[0].id;
+  bindAmountPad();
+  document.addEventListener("gesturestart", (event) => event.preventDefault());
   setView("home");
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
 }

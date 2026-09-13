@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f6f1e6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=4">
+  <link rel="stylesheet" href="./styles.css?v=5">
 </head>
 <body>
   <div id="app">
@@ -127,36 +127,40 @@
       <button type="button" data-tab="debt" onclick="sheetTabTo('debt')">Долг</button>
       <button type="button" data-tab="wedding" onclick="sheetTabTo('wedding')">Фонд</button>
     </div>
-    <div class="amount-display">
-      <span>сумма</span>
-      <strong id="amount-value">0 ₽</strong>
+    <div class="sheet-fields">
+      <div id="dynamic-chips" class="chips"></div>
+      <div id="income-fields">
+        <div class="field"><label>Источник</label><input id="entry-source" placeholder="Имя ученика или группа"></div>
+        <div class="field"><label>Количество</label><input id="entry-qty" type="number" min="1" value="1"></div>
+      </div>
+      <div id="expense-fields" hidden></div>
+      <div id="debt-fields" hidden></div>
+      <div class="field"><label>Дата</label><input id="entry-date" type="date"></div>
+      <div class="field"><label>Комментарий</label><input id="entry-note" placeholder="по желанию"></div>
     </div>
-    <div id="dynamic-chips" class="chips"></div>
-    <div id="income-fields">
-      <div class="field"><label>Источник</label><input id="entry-source" placeholder="Имя ученика или группа"></div>
-      <div class="field"><label>Количество</label><input id="entry-qty" type="number" min="1" value="1"></div>
+    <div class="keypad-block">
+      <div class="amount-display">
+        <span>сумма</span>
+        <strong id="amount-value">0 ₽</strong>
+      </div>
+      <div class="pad" id="amount-pad">
+        <button type="button" data-key="1">1</button>
+        <button type="button" data-key="2">2</button>
+        <button type="button" data-key="3">3</button>
+        <button type="button" data-key="4">4</button>
+        <button type="button" data-key="5">5</button>
+        <button type="button" data-key="6">6</button>
+        <button type="button" data-key="7">7</button>
+        <button type="button" data-key="8">8</button>
+        <button type="button" data-key="9">9</button>
+        <button type="button" data-key="C">C</button>
+        <button type="button" data-key="0">0</button>
+        <button type="button" data-key="⌫">⌫</button>
+      </div>
+      <button class="primary" id="sheet-save" type="button" onclick="submitEntry()">Сохранить в казну</button>
+      <button class="danger-btn" id="sheet-delete" type="button" hidden onclick="deleteEntry(editing.kind, editing.id)">Удалить запись</button>
+      <button class="ghost" type="button" onclick="closeSheet()">Закрыть</button>
     </div>
-    <div id="expense-fields" hidden></div>
-    <div id="debt-fields" hidden></div>
-    <div class="field"><label>Дата</label><input id="entry-date" type="date"></div>
-    <div class="field"><label>Комментарий</label><input id="entry-note" placeholder="по желанию"></div>
-    <div class="pad">
-      <button type="button" onclick="padInput('1')">1</button>
-      <button type="button" onclick="padInput('2')">2</button>
-      <button type="button" onclick="padInput('3')">3</button>
-      <button type="button" onclick="padInput('4')">4</button>
-      <button type="button" onclick="padInput('5')">5</button>
-      <button type="button" onclick="padInput('6')">6</button>
-      <button type="button" onclick="padInput('7')">7</button>
-      <button type="button" onclick="padInput('8')">8</button>
-      <button type="button" onclick="padInput('9')">9</button>
-      <button type="button" onclick="padInput('C')">C</button>
-      <button type="button" onclick="padInput('0')">0</button>
-      <button type="button" onclick="padInput('⌫')">⌫</button>
-    </div>
-    <button class="primary" id="sheet-save" type="button" onclick="submitEntry()">Сохранить в казну</button>
-    <button class="danger-btn" id="sheet-delete" type="button" hidden onclick="deleteEntry(editing.kind, editing.id)">Удалить запись</button>
-    <button class="ghost" type="button" onclick="closeSheet()">Закрыть</button>
   </section>
 
   <div id="welcome" class="welcome">
@@ -171,9 +175,9 @@
   </div>
   <div id="toast" class="toast"></div>
 
-  <script src="./js/config.js?v=4"></script>
-  <script src="./js/coach.js?v=4"></script>
-  <script src="./js/store.js?v=4"></script>
-  <script src="./js/app.js?v=4"></script>
+  <script src="./js/config.js?v=5"></script>
+  <script src="./js/coach.js?v=5"></script>
+  <script src="./js/store.js?v=5"></script>
+  <script src="./js/app.js?v=5"></script>
 </body>
 </html>
