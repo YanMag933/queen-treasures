@@ -6,6 +6,7 @@ let amountDraft = "";
 let selectedFormat = "individual";
 let selectedCategory = "food";
 let selectedDebt = "auto";
+let editing = null;
 let toastTimer = 0;
 
 function currentMonthId(date = new Date()) {
@@ -40,6 +41,17 @@ function moneyShort(n) {
 function parseAmount() {
   if (!amountDraft) return 0;
   return Number(amountDraft.replace(",", ".")) || 0;
+}
+
+function esc(text) {
+  return String(text || "").replace(/[&<>"'`]/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+    "`": "&#96;",
+  }[ch]));
 }
 
 function incomes(id = selectedMonth) {
@@ -182,6 +194,7 @@ function setView(name) {
 }
 
 function openSheet(tab) {
+  editing = null;
   sheetTab = tab || sheetTab;
   amountDraft = "";
   document.getElementById("entry-date").value = todayISO();
@@ -194,8 +207,49 @@ function openSheet(tab) {
 }
 
 function closeSheet() {
+  editing = null;
   document.getElementById("backdrop").classList.remove("show");
   document.getElementById("sheet").classList.remove("open");
+  renderSheetMode();
+}
+
+function renderSheetMode() {
+  const on = Boolean(editing);
+  document.getElementById("sheet-tabs").hidden = on;
+  const hint = document.getElementById("sheet-edit-hint");
+  if (hint) hint.hidden = !on;
+  const save = document.getElementById("sheet-save");
+  if (save) save.textContent = on ? "Сохранить правку" : "Сохранить в казну";
+  const del = document.getElementById("sheet-delete");
+  if (del) del.hidden = !on;
+}
+
+function editEntry(kind, id) {
+  const list = kind === "income" ? state.incomes : state.expenses;
+  const item = list.find((x) => x.id === id);
+  if (!item) return;
+  editing = { kind, id };
+  sheetTab = kind;
+  amountDraft = String(Math.round(Number(item.amount)) || "");
+  selectedFormat = item.format || "individual";
+  selectedCategory = item.category || "food";
+  document.getElementById("entry-date").value = item.date || todayISO();
+  document.getElementById("entry-note").value = item.comment || "";
+  document.getElementById("entry-source").value = item.source || "";
+  document.getElementById("entry-qty").value = String(item.qty || 1);
+  document.getElementById("backdrop").classList.add("show");
+  document.getElementById("sheet").classList.add("open");
+  renderSheet();
+}
+
+function deleteEntry(kind, id) {
+  if (!confirm("Удалить эту запись? Если ошиблись — можно внести её заново.")) return;
+  if (kind === "income") state.incomes = state.incomes.filter((x) => x.id !== id);
+  else if (kind === "expense") state.expenses = state.expenses.filter((x) => x.id !== id);
+  persist();
+  closeSheet();
+  toast(kind === "income" ? "Доход убран." : "Расход убран.");
+  render();
 }
 
 function padInput(key) {
@@ -230,12 +284,13 @@ function renderSheet() {
   } else if (sheetTab === "debt") {
     chips.innerHTML = [`<button class="${selectedDebt === "auto" ? "active" : ""}" onclick="chooseDebt('auto')">Авто: минимумы → дорогой</button>`]
       .concat(state.debts.map((d) =>
-        `<button class="${selectedDebt === d.id ? "active" : ""}" onclick="chooseDebt('${d.id}')">${d.name}</button>`
+        `<button class="${selectedDebt === d.id ? "active" : ""}" onclick="chooseDebt('${d.id}')">${esc(d.name)}</button>`
       )).join("");
   } else {
     chips.innerHTML = `<span class="chip">Свадебный фонд</span>`;
   }
   renderSheetAmount();
+  renderSheetMode();
 }
 
 function chooseFormat(id) {
@@ -263,11 +318,25 @@ function submitEntry() {
   if (sheetTab === "income") {
     const qty = Number(document.getElementById("entry-qty").value) || 1;
     const source = document.getElementById("entry-source").value.trim() || INCOME_FORMATS.find((f) => f.id === selectedFormat).label;
-    state.incomes.push({ id: uid(), date, source, format: selectedFormat, qty, amount, comment });
-    toast("Доход сохранён. Красиво.");
+    const payload = { date, source, format: selectedFormat, qty, amount, comment };
+    if (editing && editing.kind === "income") {
+      const item = state.incomes.find((x) => x.id === editing.id);
+      if (item) Object.assign(item, payload);
+      toast("Доход поправлен.");
+    } else {
+      state.incomes.push({ id: uid(), ...payload });
+      toast("Доход сохранён. Красиво.");
+    }
   } else if (sheetTab === "expense") {
-    state.expenses.push({ id: uid(), date, category: selectedCategory, amount, comment });
-    toast("Расход записан без драмы.");
+    const payload = { date, category: selectedCategory, amount, comment };
+    if (editing && editing.kind === "expense") {
+      const item = state.expenses.find((x) => x.id === editing.id);
+      if (item) Object.assign(item, payload);
+      toast("Расход поправлен.");
+    } else {
+      state.expenses.push({ id: uid(), ...payload });
+      toast("Расход записан без драмы.");
+    }
   } else if (sheetTab === "debt") {
     if (selectedDebt === "auto") {
       allocate(amount, currentMonthId(new Date(date))).forEach((part) => {
@@ -344,35 +413,74 @@ function renderHome() {
     <div class="card"><div class="label">Долги сейчас</div><div class="metric">${money(totalDebt())}</div><div class="label">старт ${money(APP.debtStartTotal)} · приоритет: ${pri ? pri.name + " " + Math.round(pri.rate * 100) + "%" : "всё закрыто"}</div></div>
     <div class="card"><div class="label">Задача месяца</div><div class="metric" style="font-size:18px;line-height:1.15">${facts.plan.task}</div></div>`;
 
-  const ops = recentOps(6);
-  document.getElementById("home-ops").innerHTML = ops.length ? ops.map((x) => `
+  const moneyOps = [
+    ...state.incomes.map((x) => ({ ...x, kind: "income", title: x.source, hint: INCOME_FORMATS.find((f) => f.id === x.format)?.label || "" })),
+    ...state.expenses.map((x) => ({ ...x, kind: "expense", title: EXPENSE_CATEGORIES.find((c) => c.id === x.category)?.label || x.category, hint: "расход" })),
+  ].sort((a, b) => String(b.date).localeCompare(a.date) || String(b.id).localeCompare(a.id));
+  const otherOps = recentOps(8).filter((x) => x.kind === "debt" || x.kind === "wedding");
+  const opsHtml = moneyOps.length ? moneyOps.map((x) => `
     <div class="row">
       <div class="dot ${x.kind}"></div>
-      <div class="meta"><b>${x.title}</b><span>${x.date} · ${x.hint}</span></div>
-      <div class="sum ${x.kind === "expense" || x.kind === "debt" ? "minus" : ""}">${x.kind === "expense" || x.kind === "debt" ? "−" : "+"}${money(x.amount)}</div>
-    </div>`).join("") : `<div class="empty">Пока тихо. Нажми корону «+» и сделай первую запись дня.</div>`;
+      <div class="meta"><b>${esc(x.title)}</b><span>${x.date} · ${esc(x.hint)}${x.comment ? " · " + esc(x.comment) : ""}</span></div>
+      <div class="sum ${x.kind === "expense" ? "minus" : ""}">${x.kind === "expense" ? "−" : "+"}${money(x.amount)}</div>
+      <div class="row-actions">
+        <button type="button" onclick="editEntry('${x.kind}','${x.id}')">Изменить</button>
+        <button type="button" class="danger" onclick="deleteEntry('${x.kind}','${x.id}')">Удалить</button>
+      </div>
+    </div>`).join("") : `<div class="empty">Пока тихо. Нажми «+» и сделай первую запись. Если ошибёшься — здесь можно поправить.</div>`;
+  const otherHtml = otherOps.map((x) => `
+    <div class="row">
+      <div class="dot ${x.kind}"></div>
+      <div class="meta"><b>${esc(x.title)}</b><span>${x.date} · ${esc(x.hint)}</span></div>
+      <div class="sum ${x.kind === "debt" ? "minus" : ""}">${x.kind === "debt" ? "−" : "+"}${money(x.amount)}</div>
+    </div>`).join("");
+  document.getElementById("home-ops").innerHTML = opsHtml + otherHtml;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  const height = Math.max(0, h);
+  if (height <= 0 || w <= 0) return;
+  const radius = Math.min(r, w / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + height, radius);
+  ctx.arcTo(x + w, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function drawBars(canvas, items) {
   const ctx = canvas.getContext("2d");
   const w = canvas.width = canvas.clientWidth * 2;
-  const h = canvas.height = 220;
+  const h = canvas.height = 248;
   ctx.clearRect(0, 0, w, h);
   const max = Math.max(...items.map((i) => Math.max(i.plan, i.fact, 1)));
-  const gap = 16;
+  const gap = 18;
   const barW = (w - gap * (items.length + 1)) / items.length;
   items.forEach((item, i) => {
     const x = gap + i * (barW + gap);
-    const planH = (item.plan / max) * (h - 48);
-    const factH = (item.fact / max) * (h - 48);
-    ctx.fillStyle = "#efe6d4";
-    ctx.fillRect(x, h - 28 - planH, barW, planH);
-    ctx.fillStyle = item.fact >= item.plan ? "#2f9e96" : "#4a7fb5";
-    ctx.fillRect(x + barW * 0.18, h - 28 - factH, barW * 0.64, factH);
-    ctx.fillStyle = "#6b7c8f";
-    ctx.font = "18px Manrope";
+    const planH = Math.max((item.plan / max) * (h - 56), item.plan === 0 && item.fact === 0 ? 10 : 0);
+    const factH = (item.fact / max) * (h - 56);
+    ctx.fillStyle = item.planFill;
+    roundRect(ctx, x, h - 32 - planH, barW, planH, 12);
+    const wash = ctx.createLinearGradient(x, h - 32 - planH, x, h - 32);
+    wash.addColorStop(0, item.planFill);
+    wash.addColorStop(1, item.planDeep);
+    ctx.fillStyle = wash;
+    roundRect(ctx, x, h - 32 - planH, barW, planH, 12);
+    const gx = x + barW * 0.16;
+    const gw = barW * 0.68;
+    const grad = ctx.createLinearGradient(gx, h - 32 - factH, gx, h - 32);
+    grad.addColorStop(0, item.factLight);
+    grad.addColorStop(1, item.factFill);
+    ctx.fillStyle = grad;
+    roundRect(ctx, gx, h - 32 - factH, gw, factH, 10);
+    ctx.fillStyle = item.ink;
+    ctx.font = "700 18px Manrope";
     ctx.textAlign = "center";
-    ctx.fillText(item.label, x + barW / 2, h - 8);
+    ctx.fillText(item.label, x + barW / 2, h - 10);
   });
 }
 
@@ -425,10 +533,10 @@ function renderAnalytics() {
 
   const bars = document.getElementById("bars");
   drawBars(bars, [
-    { label: "Доход", plan: facts.plan.income, fact: facts.inc },
-    { label: "Расходы", plan: facts.plan.expenses, fact: facts.exp },
-    { label: "Долги", plan: facts.plan.debts, fact: facts.debt },
-    { label: "Свадьба", plan: facts.plan.wedding, fact: facts.wed },
+    { label: "Доход", plan: facts.plan.income, fact: facts.inc, planFill: "#9bb0c9", planDeep: "#6d86a3", factFill: "#163154", factLight: "#4a7fb5", ink: "#163154" },
+    { label: "Расходы", plan: facts.plan.expenses, fact: facts.exp, planFill: "#8fc4bd", planDeep: "#5a9e96", factFill: "#1f5f59", factLight: "#4aa39a", ink: "#1f5f59" },
+    { label: "Долги", plan: facts.plan.debts, fact: facts.debt, planFill: "#c49a9f", planDeep: "#9a6a71", factFill: "#6e3f48", factLight: "#b07a82", ink: "#6e3f48" },
+    { label: "Свадьба", plan: facts.plan.wedding, fact: facts.wed, planFill: "#ddc07a", planDeep: "#c4a35a", factFill: "#8a6d24", factLight: "#d4b56a", ink: "#8a6d24" },
   ]);
 
   const catRows = EXPENSE_CATEGORIES.map((c) => {
@@ -464,6 +572,46 @@ function renderAnalytics() {
     </div>`;
 }
 
+let renamingDebtId = null;
+
+const PENCIL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16.8V20h3.2L19 8.2 15.8 5 4 16.8z"/><path d="M13.8 7l3.2 3.2"/></svg>`;
+
+function startRenameDebt(id) {
+  renamingDebtId = id;
+  renderDebts();
+  const input = document.getElementById(`debt-name-${id}`);
+  if (input) {
+    input.focus();
+    input.select();
+  }
+}
+
+function debtNameKey(event, id) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    commitDebtName(id);
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    renamingDebtId = null;
+    renderDebts();
+  }
+}
+
+function commitDebtName(id) {
+  if (renamingDebtId !== id) return;
+  const input = document.getElementById(`debt-name-${id}`);
+  const debt = state.debts.find((d) => d.id === id);
+  const name = (input?.value || "").trim().slice(0, 28);
+  renamingDebtId = null;
+  if (debt && name && name !== debt.name) {
+    debt.name = name;
+    persist();
+    toast("Название сохранено. Теперь не перепутаешь.");
+  }
+  render();
+}
+
 function renderDebts() {
   const pri = priorityDebt();
   document.getElementById("debt-hero").innerHTML = `
@@ -476,15 +624,21 @@ function renderDebts() {
     const paidM = sum(debtPays(selectedMonth).filter((p) => p.debtId === d.id));
     const isPri = pri && pri.id === d.id;
     return `<div class="debt-card ${isPri ? "priority" : ""}">
-      <div style="display:flex;justify-content:space-between;gap:8px">
-        <b>${d.name}${isPri ? " · удар сейчас" : ""}</b>
+      <div class="debt-head">
+        <div class="debt-name-row">
+          ${renamingDebtId === d.id
+            ? `<input id="debt-name-${d.id}" class="debt-rename" maxlength="28" value="${esc(d.name)}" onkeydown="debtNameKey(event,'${d.id}')" onblur="commitDebtName('${d.id}')">`
+            : `<b>${esc(d.name)}</b>
+               <button type="button" class="pencil" onclick="startRenameDebt('${d.id}')" aria-label="Переименовать">${PENCIL_ICON}</button>
+               ${isPri ? `<span class="pri-badge">удар сейчас</span>` : ""}`}
+        </div>
         <span>${Math.round(d.rate * 100)}% · мин. ${money(d.min)}</span>
       </div>
       <div class="metric">${money(rest)}</div>
       <div class="bar gold" style="margin:8px 0"><i style="width:${pct}%"></i></div>
       <div class="label">старт ${money(d.start)} · в этом месяце ${money(paidM)} · закрыто ${pct}%</div>
     </div>`;
-  }).join("");
+  }).join("") + `<p class="muted" style="margin:4px 2px 10px;font-size:12px">Карандашик — назови карту по-своему, чтобы не перепутать при записи.</p>`;
 
   const facts = monthFacts(currentMonthId());
   const suggestion = Math.max(0, facts.inc - facts.exp);
@@ -493,7 +647,7 @@ function renderDebts() {
     <div class="card">
       <div class="label">Как распределить ближайший платёж</div>
       <p>Если направить ${money(Math.max(facts.plan.debts, APP.minimaTotal))}, казна предлагает:</p>
-      ${parts.map((p) => `<div class="row"><div class="dot debt"></div><div class="meta"><b>${state.debts.find((d) => d.id === p.debtId).name}</b></div><div class="sum">${money(p.amount)}</div></div>`).join("")}
+      ${parts.map((p) => `<div class="row"><div class="dot debt"></div><div class="meta"><b>${esc(state.debts.find((d) => d.id === p.debtId).name)}</b></div><div class="sum">${money(p.amount)}</div></div>`).join("")}
     </div>`;
 }
 
@@ -611,7 +765,16 @@ window.closeWelcome = closeWelcome;
 window.chooseFormat = chooseFormat;
 window.chooseCategory = chooseCategory;
 window.chooseDebt = chooseDebt;
+window.startRenameDebt = startRenameDebt;
+window.commitDebtName = commitDebtName;
+window.debtNameKey = debtNameKey;
 window.toggleRule = toggleRule;
-window.sheetTabTo = (tab) => { sheetTab = tab; renderSheet(); };
+window.editEntry = editEntry;
+window.deleteEntry = deleteEntry;
+window.sheetTabTo = (tab) => {
+  if (editing) return;
+  sheetTab = tab;
+  renderSheet();
+};
 
 document.addEventListener("DOMContentLoaded", boot);

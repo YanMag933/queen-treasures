@@ -19,6 +19,7 @@
   --gold: #c4a35a;
   --gold-2: #e6d5a8;
   --gold-deep: #8f7328;
+  --blush: #e8b4c4;
   --line: rgba(16, 38, 63, 0.08);
   --shadow: 0 18px 40px rgba(16, 38, 63, 0.08);
   --radius: 22px;
@@ -33,7 +34,9 @@ html, body {
   background:
     radial-gradient(1200px 500px at 50% -10%, rgba(126, 182, 217, 0.28), transparent 55%),
     radial-gradient(700px 400px at 100% 20%, rgba(47, 158, 150, 0.12), transparent 50%),
-    linear-gradient(180deg, #fbf7ee 0%, var(--cream) 40%, #efe6d4 100%);
+    radial-gradient(1000px 460px at 50% 112%, rgba(232, 180, 196, 0.30), transparent 56%),
+    radial-gradient(520px 280px at 8% 100%, rgba(244, 210, 218, 0.20), transparent 58%),
+    linear-gradient(180deg, #fbf7ee 0%, var(--cream) 42%, #f4e6e4 100%);
   color: var(--ink);
   font-family: Manrope, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -41,6 +44,20 @@ html, body {
 
 body {
   padding: 0;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46vh;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(900px 380px at 50% 118%, rgba(232, 176, 196, 0.34), transparent 58%),
+    radial-gradient(420px 240px at 12% 108%, rgba(247, 214, 220, 0.22), transparent 62%);
 }
 
 button, input, select, textarea {
@@ -59,6 +76,7 @@ h1, h2, h3, .serif {
   margin: 0 auto;
   min-height: 100dvh;
   position: relative;
+  z-index: 1;
   padding-bottom: calc(var(--nav) + var(--safe-bottom) + 12px);
 }
 
@@ -324,6 +342,51 @@ h1, h2, h3, .serif {
 .row .sum { font-weight: 700; font-size: 14px; color: var(--navy); white-space: nowrap; }
 .row .sum.minus { color: #8a4a4a; }
 
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex: 1 0 100%;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.row-actions button,
+.danger-btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 12px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.row-actions button.danger,
+.danger-btn {
+  color: #8a4a4a;
+  border-color: rgba(138, 74, 74, 0.25);
+  width: 100%;
+  margin: 0 0 6px;
+}
+
+.row-actions button.danger {
+  width: auto;
+  margin: 0;
+}
+
+.sheet-edit-hint {
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  margin: 0 0 10px;
+}
+
+.row {
+  flex-wrap: wrap;
+}
+
 .nav {
   position: fixed;
   left: 50%;
@@ -335,9 +398,9 @@ h1, h2, h3, .serif {
   display: grid;
   grid-template-columns: 1fr 1fr 64px 1fr 1fr;
   align-items: start;
-  background: rgba(255, 251, 244, 0.92);
+  background: rgba(255, 247, 246, 0.88);
   backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(196, 163, 90, 0.25);
+  border-top: 1px solid rgba(232, 176, 196, 0.28);
   z-index: 20;
 }
 
@@ -598,6 +661,63 @@ h1, h2, h3, .serif {
   box-shadow: 0 10px 24px rgba(196, 163, 90, 0.12);
 }
 
+.debt-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.debt-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.debt-name-row b {
+  font-size: 15px;
+}
+
+.pencil {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(196, 163, 90, 0.45);
+  background: #fffbf4;
+  border-radius: 10px;
+  color: var(--gold-deep);
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.pencil svg {
+  width: 16px;
+  height: 16px;
+}
+
+.debt-rename {
+  width: 100%;
+  border: 1px solid var(--gold);
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-weight: 700;
+  outline: none;
+}
+
+.pri-badge {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--gold-deep);
+  background: rgba(196, 163, 90, 0.16);
+  border-radius: 999px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
 .muted { color: var(--muted); }
 .empty { text-align: center; color: var(--muted); padding: 18px 8px; font-size: 14px; }
 
@@ -610,6 +730,36 @@ h1, h2, h3, .serif {
 }
 
 canvas { width: 100%; display: block; }
+
+.bars-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--navy);
+}
+
+.bars-legend .muted {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.bars-legend .lg {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 99px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+.lg-income { background: #163154; }
+.lg-spend { background: #2a6f68; }
+.lg-debt { background: #6e3f48; }
+.lg-wed { background: #c4a35a; }
 
 .check {
   display: flex;
