@@ -1,0 +1,10 @@
+_extract*
+__pycache__/
+.DS_Store
+Thumbs.db
+*.docx
+*.xlsx
+*.pdf
+.idea/
+.vscode/
+tools/__pycache__/
