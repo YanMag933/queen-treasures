@@ -67,7 +67,7 @@ function debtPays(id = selectedMonth) {
 }
 
 function weddingPays(id = selectedMonth) {
-  return state.weddingEntries.filter((x) => inMonth(x.date, id) && x.id !== "seed");
+  return state.weddingEntries.filter((x) => inMonth(x.date, id));
 }
 
 function sum(list, key = "amount") {
@@ -171,7 +171,7 @@ function daysWithoutLog() {
 function loggedToday() {
   const t = todayISO();
   return [...state.incomes, ...state.expenses, ...state.debtPayments, ...state.weddingEntries]
-    .some((x) => x.date === t && x.id !== "seed");
+    .some((x) => x.date === t);
 }
 
 function persist() {
@@ -224,15 +224,23 @@ function renderSheetMode() {
   if (del) del.hidden = !on;
 }
 
+function entriesOf(kind) {
+  if (kind === "income") return state.incomes;
+  if (kind === "expense") return state.expenses;
+  if (kind === "debt") return state.debtPayments;
+  if (kind === "wedding") return state.weddingEntries;
+  return [];
+}
+
 function editEntry(kind, id) {
-  const list = kind === "income" ? state.incomes : state.expenses;
-  const item = list.find((x) => x.id === id);
+  const item = entriesOf(kind).find((x) => x.id === id);
   if (!item) return;
   editing = { kind, id };
   sheetTab = kind;
   amountDraft = String(Math.round(Number(item.amount)) || "");
   selectedFormat = item.format || "individual";
   selectedCategory = item.category || "food";
+  selectedDebt = item.debtId || "auto";
   document.getElementById("entry-date").value = item.date || todayISO();
   document.getElementById("entry-note").value = item.comment || "";
   document.getElementById("entry-source").value = item.source || "";
@@ -246,9 +254,11 @@ function deleteEntry(kind, id) {
   if (!confirm("Удалить эту запись? Если ошиблись — можно внести её заново.")) return;
   if (kind === "income") state.incomes = state.incomes.filter((x) => x.id !== id);
   else if (kind === "expense") state.expenses = state.expenses.filter((x) => x.id !== id);
+  else if (kind === "debt") state.debtPayments = state.debtPayments.filter((x) => x.id !== id);
+  else if (kind === "wedding") state.weddingEntries = state.weddingEntries.filter((x) => x.id !== id);
   persist();
   closeSheet();
-  toast(kind === "income" ? "Доход убран." : "Расход убран.");
+  toast(kind === "income" ? "Доход убран." : kind === "expense" ? "Расход убран." : kind === "debt" ? "Платёж убран." : "Запись фонда убрана.");
   render();
 }
 
@@ -311,7 +321,7 @@ function renderSheet() {
         `<button class="${selectedDebt === d.id ? "active" : ""}" onclick="chooseDebt('${d.id}')">${esc(d.name)}</button>`
       )).join("");
   } else {
-    chips.innerHTML = `<span class="chip">Свадебный фонд</span>`;
+    chips.innerHTML = `<span class="chip">Только вручную — сколько отложила, столько и пишем</span>`;
   }
   renderSheetAmount();
   renderSheetMode();
@@ -362,14 +372,24 @@ function submitEntry() {
       toast("Расход записан без драмы.");
     }
   } else if (sheetTab === "debt") {
-    if (selectedDebt === "auto") {
+    if (editing && editing.kind === "debt") {
+      const item = state.debtPayments.find((x) => x.id === editing.id);
+      const debtId = selectedDebt === "auto" ? (item?.debtId || selectedDebt) : selectedDebt;
+      if (item) Object.assign(item, { date, debtId, amount, comment });
+      toast("Платёж поправлен.");
+    } else if (selectedDebt === "auto") {
       allocate(amount, currentMonthId(new Date(date))).forEach((part) => {
         state.debtPayments.push({ id: uid(), date, debtId: part.debtId, amount: part.amount, comment: comment || "Автораспределение" });
       });
+      toast("Платёж ушёл в казну долгов.");
     } else {
       state.debtPayments.push({ id: uid(), date, debtId: selectedDebt, amount, comment });
+      toast("Платёж ушёл в казну долгов.");
     }
-    toast("Платёж ушёл в казну долгов.");
+  } else if (editing && editing.kind === "wedding") {
+    const item = state.weddingEntries.find((x) => x.id === editing.id);
+    if (item) Object.assign(item, { date, amount, comment });
+    toast("Фонд поправлен.");
   } else {
     state.weddingEntries.push({ id: uid(), date, amount, comment });
     toast("Фонд свадьбы пополнился.");
@@ -400,7 +420,7 @@ function recentOps(limit = 8) {
     ...state.incomes.map((x) => ({ ...x, kind: "income", title: x.source, hint: INCOME_FORMATS.find((f) => f.id === x.format)?.label || "" })),
     ...state.expenses.map((x) => ({ ...x, kind: "expense", title: EXPENSE_CATEGORIES.find((c) => c.id === x.category)?.label || x.category, hint: "расход" })),
     ...state.debtPayments.map((x) => ({ ...x, kind: "debt", title: state.debts.find((d) => d.id === x.debtId)?.name || "Долг", hint: "платёж по долгу" })),
-    ...state.weddingEntries.filter((x) => x.id !== "seed").map((x) => ({ ...x, kind: "wedding", title: "Свадебный фонд", hint: x.comment || "пополнение" })),
+    ...state.weddingEntries.map((x) => ({ ...x, kind: "wedding", title: "Свадебный фонд", hint: x.comment || "пополнение" })),
   ].sort((a, b) => String(b.date).localeCompare(a.date) || String(b.id).localeCompare(a.id));
   return rows.slice(0, limit);
 }
@@ -428,9 +448,15 @@ function renderHome() {
     <div class="sub" style="margin-top:8px">${p}% плана · свободные ${money(facts.free)} · в долги план ${money(facts.plan.debts)}</div>`;
 
   document.getElementById("home-stats").innerHTML = `
-    <div class="stat ${facts.exp <= facts.plan.expenses ? "good" : "warn"}"><div class="label">Расходы</div><div class="value">${moneyShort(facts.exp)}</div><div class="label">из ${moneyShort(facts.plan.expenses)}</div></div>
-    <div class="stat"><div class="label">В долги</div><div class="value">${moneyShort(facts.debt)}</div><div class="label">план ${moneyShort(facts.plan.debts)}</div></div>
-    <div class="stat good"><div class="label">Свадьба</div><div class="value">${moneyShort(weddingTotal())}</div><div class="label">из ${moneyShort(APP.weddingGoal)}</div></div>`;
+    <button type="button" class="stat ${facts.exp <= facts.plan.expenses ? "good" : "warn"}" onclick="openSheet('expense')" aria-label="Записать расход">
+      <div class="label">Расходы</div><div class="value">${moneyShort(facts.exp)}</div><div class="label">из ${moneyShort(facts.plan.expenses)}</div>
+    </button>
+    <button type="button" class="stat" onclick="openSheet('debt')" aria-label="Записать платёж по долгу">
+      <div class="label">В долги</div><div class="value">${moneyShort(facts.debt)}</div><div class="label">план ${moneyShort(facts.plan.debts)}</div>
+    </button>
+    <button type="button" class="stat good" onclick="openSheet('wedding')" aria-label="Отложить на свадьбу">
+      <div class="label">Свадьба</div><div class="value">${moneyShort(weddingTotal())}</div><div class="label">из ${moneyShort(APP.weddingGoal)}</div>
+    </button>`;
 
   const pri = priorityDebt();
   document.getElementById("home-goals").innerHTML = `
@@ -440,25 +466,19 @@ function renderHome() {
   const moneyOps = [
     ...state.incomes.map((x) => ({ ...x, kind: "income", title: x.source, hint: INCOME_FORMATS.find((f) => f.id === x.format)?.label || "" })),
     ...state.expenses.map((x) => ({ ...x, kind: "expense", title: EXPENSE_CATEGORIES.find((c) => c.id === x.category)?.label || x.category, hint: "расход" })),
+    ...state.debtPayments.map((x) => ({ ...x, kind: "debt", title: state.debts.find((d) => d.id === x.debtId)?.name || "Долг", hint: "платёж по долгу" })),
+    ...state.weddingEntries.map((x) => ({ ...x, kind: "wedding", title: "Свадебный фонд", hint: x.comment || "пополнение" })),
   ].sort((a, b) => String(b.date).localeCompare(a.date) || String(b.id).localeCompare(a.id));
-  const otherOps = recentOps(8).filter((x) => x.kind === "debt" || x.kind === "wedding");
-  const opsHtml = moneyOps.length ? moneyOps.map((x) => `
+  document.getElementById("home-ops").innerHTML = moneyOps.length ? moneyOps.map((x) => `
     <div class="row">
       <div class="dot ${x.kind}"></div>
-      <div class="meta"><b>${esc(x.title)}</b><span>${x.date} · ${esc(x.hint)}${x.comment ? " · " + esc(x.comment) : ""}</span></div>
-      <div class="sum ${x.kind === "expense" ? "minus" : ""}">${x.kind === "expense" ? "−" : "+"}${money(x.amount)}</div>
+      <div class="meta"><b>${esc(x.title)}</b><span>${x.date} · ${esc(x.hint)}${x.kind !== "wedding" && x.comment ? " · " + esc(x.comment) : ""}</span></div>
+      <div class="sum ${x.kind === "expense" || x.kind === "debt" ? "minus" : ""}">${x.kind === "expense" || x.kind === "debt" ? "−" : "+"}${money(x.amount)}</div>
       <div class="row-actions">
         <button type="button" onclick="editEntry('${x.kind}','${x.id}')">Изменить</button>
         <button type="button" class="danger" onclick="deleteEntry('${x.kind}','${x.id}')">Удалить</button>
       </div>
-    </div>`).join("") : `<div class="empty">Пока тихо. Нажми «+» и сделай первую запись. Если ошибёшься — здесь можно поправить.</div>`;
-  const otherHtml = otherOps.map((x) => `
-    <div class="row">
-      <div class="dot ${x.kind}"></div>
-      <div class="meta"><b>${esc(x.title)}</b><span>${x.date} · ${esc(x.hint)}</span></div>
-      <div class="sum ${x.kind === "debt" ? "minus" : ""}">${x.kind === "debt" ? "−" : "+"}${money(x.amount)}</div>
-    </div>`).join("");
-  document.getElementById("home-ops").innerHTML = opsHtml + otherHtml;
+    </div>`).join("") : `<div class="empty">Пока тихо. Нажми «+» или карточки «Расходы», «В долги», «Свадьба». Если ошибёшься — здесь можно поправить.</div>`;
 }
 
 function roundRect(ctx, x, y, w, h, r) {

@@ -12,7 +12,7 @@ function defaultState() {
     incomes: [],
     expenses: [],
     debtPayments: [],
-    weddingEntries: [{ id: "seed", date: APP.planStart, amount: APP.weddingSeed, comment: "Стартовый мини-резерв / начало фонда" }],
+    weddingEntries: [],
     debts: DEBT_SEED.map((d) => ({ ...d, remaining: d.start })),
     creditFreeze: {},
     createdAt: new Date().toISOString(),
@@ -33,6 +33,9 @@ function loadState() {
         const seed = DEBT_SEED.find((s) => s.id === d.id) || d;
         return { ...seed, ...d };
       }),
+      weddingEntries: (parsed.weddingEntries || []).map((x) => (
+        x && x.id === "seed" ? { ...x, id: "wedding-start" } : x
+      )),
     };
   } catch {
     return defaultState();
@@ -51,6 +54,9 @@ function importState(json) {
   const parsed = JSON.parse(json);
   if (!parsed || typeof parsed !== "object") throw new Error("Неверный файл");
   const next = { ...defaultState(), ...parsed, version: 1 };
+  next.weddingEntries = (next.weddingEntries || []).map((x) => (
+    x && x.id === "seed" ? { ...x, id: "wedding-start" } : x
+  ));
   saveState(next);
   return next;
 }
