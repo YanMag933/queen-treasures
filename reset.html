@@ -45,12 +45,12 @@
             await Promise.all(keys.map((k) => caches.delete(k)));
           }
           document.getElementById("msg").textContent = "Готово. Открываю приложение…";
-          setTimeout(() => location.replace("./?v=7"), 400);
+          setTimeout(() => location.replace("./?v=8"), 400);
         } catch (e) {
           document.getElementById("msg").textContent =
             "Не удалось автоматически. Очисти данные сайта вручную в настройках браузера.";
           const a = document.createElement("a");
-          a.href = "./?v=7";
+          a.href = "./?v=8";
           a.textContent = "Открыть приложение";
           document.body.appendChild(a);
         }

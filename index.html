@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=7">
+  <link rel="stylesheet" href="./styles.css?v=8">
 </head>
 <body>
   <div id="app">
@@ -86,12 +86,13 @@
           <div class="field"><label>Как к тебе обращаться</label><input id="name-input" maxlength="24"></div>
           <button class="primary" type="button" onclick="saveName()">Сохранить имя</button>
           <div style="height:10px"></div>
-          <button class="ghost" type="button" onclick="doExport()">Скачать резервную копию</button>
+          <button class="primary" type="button" onclick="doExport()">Сохранить копию казны</button>
+          <button class="ghost" type="button" onclick="copyBackup()">Скопировать данные</button>
           <label class="ghost" style="display:block;text-align:center;padding:12px">
             Восстановить из файла
             <input type="file" accept="application/json" hidden onchange="doImport(event)">
           </label>
-          <p class="muted" style="font-size:12px">Данные живут на этом телефоне. Сделай копию, если меняешь устройство. Репозиторий лучше держать приватным.</p>
+          <p class="muted" style="font-size:12px">Каждая запись уже живёт на этом телефоне — закрывать приложение не страшно. Копия нужна, если сменишь телефон, очистишь Safari или переустановишь иконку. На iPhone: «Сохранить копию» → Файлы или отправь себе в мессенджер.</p>
         </div>
       </section>
     </main>
@@ -175,9 +176,9 @@
   </div>
   <div id="toast" class="toast"></div>
 
-  <script src="./js/config.js?v=7"></script>
-  <script src="./js/coach.js?v=7"></script>
-  <script src="./js/store.js?v=7"></script>
-  <script src="./js/app.js?v=7"></script>
+  <script src="./js/config.js?v=8"></script>
+  <script src="./js/coach.js?v=8"></script>
+  <script src="./js/store.js?v=8"></script>
+  <script src="./js/app.js?v=8"></script>
 </body>
 </html>

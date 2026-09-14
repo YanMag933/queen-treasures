@@ -743,12 +743,41 @@ function saveName() {
   render();
 }
 
-function doExport() {
-  const blob = new Blob([exportState(state)], { type: "application/json" });
+async function doExport() {
+  const json = exportState(state);
+  const filename = `sokrovishcha-korolevy-${todayISO()}.json`;
+  const file = new File([json], filename, { type: "application/json" });
+  try {
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Казна королевы" });
+      toast("Копия ушла. Сохрани её в Файлы или отправь себе.");
+      return;
+    }
+    if (navigator.share) {
+      await navigator.share({ title: filename, text: json });
+      toast("Копия ушла. Сохрани её в заметки или Файлы.");
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === "AbortError") return;
+  }
+  const url = URL.createObjectURL(file);
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "sokrovishcha-korolevy.json";
+  a.href = url;
+  a.download = filename;
   a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  toast("Файл копии скачивается.");
+}
+
+async function copyBackup() {
+  const json = exportState(state);
+  try {
+    await navigator.clipboard.writeText(json);
+    toast("Данные скопированы. Вставь их в заметки.");
+  } catch {
+    toast("Не вышло скопировать. Нажми «Сохранить копию казны».");
+  }
 }
 
 function doImport(file) {
@@ -808,6 +837,7 @@ window.submitEntry = submitEntry;
 window.shiftMonth = shiftMonth;
 window.saveName = saveName;
 window.doExport = doExport;
+window.copyBackup = copyBackup;
 window.doImport = (e) => doImport(e.target.files[0]);
 window.closeWelcome = closeWelcome;
 window.chooseFormat = chooseFormat;
